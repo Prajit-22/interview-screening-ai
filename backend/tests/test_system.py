@@ -104,8 +104,8 @@ def test_retrieval_relevant_and_reloads(settings):
 
 def test_model_json_contract(settings):
     p = {'anchor': 'RAG', 'topic': 'similarity', 'difficulty': 'foundational'}
-    evidence = [{'id': 'p20-c0', 'text': 'Similarity can compare vectors.'}]
-    valid = {'text': 'How would you compare two vectors in your RAG retrieval project?', 'focus': 'similarity', 'rationale': 'Connects RAG to similarity', 'citation_ids': ['p20-c0']}
+    evidence = [{'id': 'p20-c0', 'text': 'Similarity can compare the directions of feature vectors.'}]
+    valid = {'text': 'How would you compare two vectors in your RAG retrieval project?', 'focus': 'similarity', 'rationale': 'Connects RAG to similarity', 'citation_ids': ['p20-c0'], 'evidence_quote': 'Similarity can compare the directions of feature vectors.'}
     generator = Generator(replace(settings, mode='llm'))
     def response(obj):
         return httpx.Response(200, request=httpx.Request('POST', 'http://test'), json={'choices': [{'message': {'content': json.dumps(obj)}}]})
