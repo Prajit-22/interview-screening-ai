@@ -136,3 +136,33 @@ def test_missing_corpus_is_actionable(settings, tmp_path):
     with TestClient(create_app(replace(settings, database=tmp_path / 'empty.db', corpus=tmp_path / 'absent.pdf'))) as client:
         assert client.get('/api/health').json()['status'] == 'not_ready'
         assert client.post('/api/sessions', data={'role': 'ai-ml'}, files={'resume': ('resume.txt', RESUME)}).status_code == 503
+
+
+@pytest.mark.parametrize('status,label', [(401, 'key'), (403, 'access'), (404, 'not found'), (429, 'limit'), (400, 'request'), (503, 'HTTP 503')])
+def test_provider_errors_are_actionable_and_private(settings, status, label):
+    generator = Generator(replace(settings, mode='llm'))
+    p = {'anchor': 'RAG', 'topic': 'similarity', 'difficulty': 'foundational'}
+    evidence = [{'id': 'p20-c0', 'text': 'Similarity can compare the directions of feature vectors.'}]
+    resp = httpx.Response(status, request=httpx.Request('POST', 'http://test'),
+                          json={'error': 'PRIVATE KEY AND PROMPT MUST NOT BE SHOWN'})
+    with patch('httpx.Client.post', return_value=resp) as post:
+        with pytest.raises(ModelUnavailable, match=label) as err:
+            generator.generate({'skills': ['RAG']}, 'ai-ml', [p], [evidence])
+        assert 'PRIVATE' not in str(err.value)
+        assert post.call_count == 1
+
+
+def test_model_length_limit_is_rejected_and_retried(settings):
+    generator = Generator(replace(settings, mode='llm'))
+    p = {'anchor': 'RAG', 'topic': 'similarity', 'difficulty': 'foundational'}
+    evidence = [{'id': 'p20-c0', 'text': 'Similarity can compare the directions of feature vectors.'}]
+    resp = httpx.Response(200, request=httpx.Request('POST', 'http://test'),
+                          json={'choices': [{'finish_reason': 'length', 'message': {'content': '{}'}}]})
+    with patch('httpx.Client.post', return_value=resp) as post:
+        with pytest.raises(ModelUnavailable, match='token limit'):
+            generator.generate({'skills': ['RAG']}, 'ai-ml', [p], [evidence])
+        assert post.call_count == 2
+        request = post.call_args.kwargs['json']
+        assert request['max_tokens'] == 900
+        assert 'Required JSON schema' in request['messages'][0]['content']
+        assert request['response_format'] == {'type': 'json_object'}
