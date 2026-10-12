@@ -4,6 +4,7 @@ import { request, type Health, type Role, type Session, type Question } from './
 function Evidence({ q }: { q: Question }) {
   return <details className="evidence"><summary>View retrieval trace & textbook evidence</summary>
     <p><b>Why this question</b><br />{q.rationale}</p>
+    {q.evidence_quote && <p><b>Supporting quote</b><br />{q.evidence_quote}</p>}
     <p><b>Resume anchor:</b> {q.plan.anchor} · <b>Difficulty:</b> {q.plan.difficulty}</p>
     <p><b>Retrieval query</b><br /><code>{q.plan.query}</code></p>
     {q.sources.map(s => <blockquote key={s.id} className={q.citation_ids.includes(s.id) ? 'cited' : ''}>
