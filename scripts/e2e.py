@@ -7,7 +7,9 @@ with sync_playwright() as p:
  page=b.new_page(viewport={'width':1280,'height':1000}, device_scale_factor=1)
  errors=[]
  page.on('pageerror', lambda e: errors.append(str(e)))
- page.goto('http://127.0.0.1:5173'); page.get_by_text('Knowledge index ready').wait_for()
+ page.route('https://fonts.googleapis.com/**', lambda route: route.abort())
+ page.route('https://fonts.gstatic.com/**', lambda route: route.abort())
+ page.goto('http://127.0.0.1:5173', wait_until='domcontentloaded'); page.get_by_text('Knowledge index ready').wait_for()
  page.screenshot(path=str(root/'data'/'groundwork-entry.png'),full_page=True)
  page.get_by_label('Resume file').set_input_files(str(root/'examples/resume.txt'))
  page.get_by_label('Target role').select_option('ai-ml')
