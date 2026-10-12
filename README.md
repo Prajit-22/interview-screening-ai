@@ -52,7 +52,7 @@ LLM_TIMEOUT=180
 
 The 3B model needs several GB of available RAM and its first request may be slow. A larger instruction model generally gives better questions. The endpoint must support chat completions with `response_format: {"type":"json_object"}`. For another OpenAI-compatible provider, set its `/v1` base URL, model and API key in `.env`. Never put keys in frontend code or commit `.env`.
 
-The system does **not** silently switch to practice questions if a model fails. Invalid JSON, invalid citations, timeouts or provider errors return a visible 502; no partial session is stored. Correct the model configuration and retry. Health `ready` means the *knowledge index* is ready, not that a model request has succeeded.
+The system does **not** silently switch to practice questions if a model fails. Each question allows one bounded retry if validation or a provider request fails. If both attempts fail, invalid JSON, invalid citations, timeouts or provider errors return a visible 502; no partial session is stored. Correct the model configuration and retry. Health `ready` means the *knowledge index* is ready, not that a model request has succeeded.
 
 ## Architecture
 
