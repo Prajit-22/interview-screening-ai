@@ -1,0 +1,4 @@
+Demo Backend Candidate (synthetic)
+Backend engineer working on FastAPI, SQL and Docker services.
+Built a prediction API and a data validation pipeline for customer analytics.
+Developed Django REST APIs with persisted input records and integration tests.
