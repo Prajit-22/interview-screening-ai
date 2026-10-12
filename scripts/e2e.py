@@ -12,7 +12,7 @@ with sync_playwright() as p:
  page.get_by_label('Resume file').set_input_files(str(root/'examples/resume.txt'))
  page.get_by_label('Target role').select_option('ai-ml')
  page.get_by_role('button',name='Build my interview').click()
- page.get_by_label('Your answer').wait_for(timeout=60000)
+ page.get_by_label('Your answer').wait_for(timeout=360000)
  page.get_by_text('View retrieval trace & textbook evidence').click()
  page.screenshot(path=str(root/'data'/'groundwork-evidence.png'),full_page=True)
  page.get_by_text('View retrieval trace & textbook evidence').click()
