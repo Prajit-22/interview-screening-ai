@@ -1,0 +1,5 @@
+Demo Candidate (synthetic resume, not an actual applicant)
+Early-career Python developer with SQL, FastAPI and Django.
+Projects: Built a RAG document assistant using vector similarity and text retrieval.
+Developed an NLP pipeline for conversation classification and model evaluation.
+Interests: machine learning, reliable APIs and data pipelines.
