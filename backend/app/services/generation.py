@@ -39,7 +39,7 @@ def plan(profile, role, count):
         # Include role and resume skill in the stored trace; retrieval stays ML-specific.
         query = f'{topic} {topics[i % len(topics)]} {anchor}'
         result.append({'query': query, 'anchor': anchor, 'topic': topic,
-                       'difficulty': profile['difficulty']})
+                       'difficulty': profile.get('difficulty', 'foundational')})
     return result
 
 
@@ -83,7 +83,7 @@ class Generator:
             'citation_ids MUST be one or more supplied chunk IDs that support the question. '
             'rationale must explain the connection to the specified resume skill. No hiring recommendation.'
         )
-        payload = {'role': ROLES[role]['name'], 'resume_context': {'skill': p['anchor'], 'difficulty': profile['difficulty'], 'project': next((line for line in profile['background'] if p['anchor'].lower() in line.lower()), '')}, 'plan': p,
+        payload = {'role': ROLES[role]['name'], 'resume_context': {'skill': p['anchor'], 'difficulty': profile.get('difficulty', 'foundational'), 'project': next((line for line in profile.get('background', []) if p['anchor'].lower() in line.lower()), '')}, 'plan': p,
                    'evidence': [{'id': c['id'], 'text': c['text']} for c in sources],
                    'avoid_previous_topics': [q['focus'] for q in previous]}
         headers = {'Authorization': f'Bearer {self.settings.api_key}'} if self.settings.api_key else {}
