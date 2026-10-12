@@ -130,3 +130,7 @@ This is a local assignment prototype, not a production hiring product. Bind only
 PDF uploads must be text-based (OCR is not included), unencrypted and at most 10 pages/2 MB. The backend role deliberately tests ML serving and data pipelines because the assigned corpus is ML, not an invented backend textbook. The UI uses a Google Fonts stylesheet with system-font fallbacks; internet loss does not block functionality.
 
 See `docs/demo-script.md` for the mandatory video walkthrough and `docs/design.md` for interview preparation.
+
+### Model compatibility note
+
+`LLM_JSON_SCHEMA=true` enables the llama.cpp `response_format.schema` grammar extension. Keep it false for standard OpenAI-compatible/Ollama endpoints. Small local models can return valid JSON yet ask poorly grounded questions. The citation check only checks identifiers: inspect the actual evidence and use a capable model before recording the submission demo. The assignment is not verified merely because model JSON parses.
