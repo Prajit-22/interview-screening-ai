@@ -1,0 +1,14 @@
+.venv/
+.env
+__pycache__/
+.pytest_cache/
+node_modules/
+dist/
+data/*
+!data/.gitkeep
+*.db
+*.db-wal
+*.db-shm
+*.gguf
+
+*.tsbuildinfo
