@@ -53,7 +53,13 @@ class Generator:
                     for i, (p, sources) in enumerate(zip(plans, evidence))]
         result = []
         for p, sources in zip(plans, evidence):
-            question = self.model_question(profile, role, p, sources, result)
+            for attempt in range(2):
+                try:
+                    question = self.model_question(profile, role, p, sources, result)
+                    break
+                except ModelUnavailable:
+                    if attempt == 1:
+                        raise
             result.append(question)
         return result
 
@@ -71,7 +77,7 @@ class Generator:
         selected = sources[0]
         schema = {'type': 'object', 'properties': {
             'text': {'type': 'string', 'minLength': 40, 'maxLength': 1000}, 'focus': {'type': 'string'},
-            'rationale': {'type': 'string'}, 'evidence_quote': {'type': 'string'},
+            'rationale': {'type': 'string'}, 'evidence_quote': {'type': 'string', 'minLength': 25, 'maxLength': 300},
             'citation_ids': {'type': 'array', 'minItems': 1, 'maxItems': 1, 'items': {'type': 'string', 'enum': [selected['id']]}}},
             'required': ['text', 'focus', 'rationale', 'evidence_quote', 'citation_ids'], 'additionalProperties': False}
         instructions = (
