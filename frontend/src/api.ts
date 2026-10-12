@@ -1,5 +1,5 @@
 export type Source = { id: string; page: number; text: string; source: string; score: number; url: string }
-export type Question = { id: string; number: number; text: string; focus: string; rationale: string; citation_ids: string[]; sources: Source[]; answer: string | null; plan: { query: string; anchor: string; difficulty: string }; model: string | null }
+export type Question = { id: string; number: number; text: string; focus: string; rationale: string; evidence_quote?: string; citation_ids: string[]; sources: Source[]; answer: string | null; plan: { query: string; anchor: string; difficulty: string }; model: string | null }
 export type Profile = { skills: string[]; domains: string[]; difficulty: string; difficulty_basis: string; background: string[] }
 export type Session = { id: string; role: string; status: string; mode: string; profile: Profile; questions: Question[]; summary: null | { answered: number; total_words: number; topics: string[]; response_lengths: number[]; short_responses: number[]; note: string; next_step: string } }
 export type Health = { status: string; mode: string; model: string | null; chunks: number; error: string | null }
