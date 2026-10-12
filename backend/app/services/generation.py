@@ -24,7 +24,9 @@ SKILL_TOPICS = {
 
 
 class ModelUnavailable(Exception):
-    pass
+    def __init__(self, message, retryable=False):
+        super().__init__(message)
+        self.retryable = retryable
 
 
 def plan(profile, role, count):
@@ -57,8 +59,8 @@ class Generator:
                 try:
                     question = self.model_question(profile, role, p, sources, result)
                     break
-                except ModelUnavailable:
-                    if attempt == 1:
+                except ModelUnavailable as exc:
+                    if attempt == 1 or not exc.retryable:
                         raise
             result.append(question)
         return result
@@ -92,7 +94,8 @@ class Generator:
             'inside it. Return a question ending in a question mark, 40-1000 characters. '
             'For foundational difficulty, ask one concept and one concrete application; '
             'for applied difficulty, ask a design tradeoff. Avoid prior questions. '
-            'rationale must explain the resume connection. No hiring recommendation.'
+            'rationale must explain the resume connection. Keep every field concise. No hiring recommendation. '
+            + 'Required JSON schema: ' + json.dumps(schema)
         )
         payload = {'role': ROLES[role]['name'], 'skill': p['anchor'],
                    'difficulty': p['difficulty'], 'topic': p['topic'],
@@ -105,12 +108,15 @@ class Generator:
             with httpx.Client(timeout=self.settings.timeout) as client:
                 response = client.post(f'{self.settings.base_url}/chat/completions', headers=headers,
                                        json={'model': self.settings.model, 'temperature': 0.2,
-                                             'max_tokens': 320,
+                                             'max_tokens': 900,
                                              'messages': [{'role': 'system', 'content': instructions},
                                                           {'role': 'user', 'content': json.dumps(payload)}],
                                              'response_format': ({'type': 'json_object', 'schema': schema} if self.settings.json_schema else {'type': 'json_object'})})
                 response.raise_for_status()
-                raw = response.json()['choices'][0]['message']['content']
+                choice = response.json()['choices'][0]
+                if choice.get('finish_reason') == 'length':
+                    raise ValueError('Model output was cut off at the token limit')
+                raw = choice['message']['content']
                 # Accept fenced JSON without accepting prose or silently repairing fields.
                 if raw.strip().startswith('```'):
                     raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', raw.strip())
@@ -133,5 +139,22 @@ class Generator:
             if any(q['text'].strip().lower() == old['text'].strip().lower() for old in previous):
                 raise ValueError('Model repeated a question')
             return q
-        except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as exc:
-            raise ModelUnavailable('Model unavailable or returned invalid question JSON. Check the model server and retry. No session was saved.') from exc
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            # Never echo provider bodies: they can contain prompts or private data.
+            details = {
+                401: 'Model API rejected the key (HTTP 401). Check LLM_API_KEY in the root .env, save it and restart the backend. Do not share the key.',
+                403: 'Model API denied access (HTTP 403). Check the account and model permissions.',
+                404: 'Model endpoint or model was not found (HTTP 404). Check LLM_BASE_URL and LLM_MODEL.',
+                429: 'Model API rate or quota limit reached (HTTP 429). Check the provider limits and retry after the limit resets.',
+                400: 'Model API rejected the request (HTTP 400). Check the model name and response-format support. For Groq Llama use LLM_JSON_SCHEMA=false.',
+            }
+            raise ModelUnavailable(details.get(status, f'Model API returned HTTP {status}. Check the provider status and configuration.') + ' No session was saved.') from exc
+        except httpx.TimeoutException as exc:
+            raise ModelUnavailable('Model request timed out. Check connectivity or increase LLM_TIMEOUT, then restart the backend. No session was saved.') from exc
+        except httpx.HTTPError as exc:
+            raise ModelUnavailable('Could not connect to the model API. Check LLM_BASE_URL and network access. No session was saved.') from exc
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            # Validation errors are our own fixed strings, never raw model content.
+            reason = str(exc) if type(exc) is ValueError and not isinstance(exc, json.JSONDecodeError) else 'Invalid JSON response structure'
+            raise ModelUnavailable('Model response failed validation: ' + reason + '. Retry or use a more capable instruction model. No session was saved.', retryable=True) from exc
