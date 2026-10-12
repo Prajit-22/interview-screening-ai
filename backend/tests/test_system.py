@@ -166,3 +166,31 @@ def test_model_length_limit_is_rejected_and_retried(settings):
         assert request['max_tokens'] == 900
         assert 'Required JSON schema' in request['messages'][0]['content']
         assert request['response_format'] == {'type': 'json_object'}
+
+
+@pytest.mark.parametrize('base', [
+    'https://api.groq.com', 'https://api.groq.com/',
+    'https://api.groq.com/v1', 'https://api.groq.com/openai',
+    'https://api.groq.com/openai/v1/',
+    'https://api.groq.com/openai/v1/chat/completions',
+    ' "https://api.groq.com/openai/v1/" \r\n',
+])
+def test_groq_config_normalizes_common_pastes(settings, base):
+    fixed = replace(settings, base_url=base, model=' "llama-3.1-8b-instant" \r\n')
+    assert fixed.base_url == 'https://api.groq.com/openai/v1'
+    assert fixed.model == 'llama-3.1-8b-instant'
+
+
+def test_endpoint_normalization_preserves_custom_paths_and_model_case(settings):
+    fixed = replace(settings, base_url='https://example.test/custom/v2/chat/completions/', model='MyModel')
+    assert fixed.base_url == 'https://example.test/custom/v2'
+    assert fixed.model == 'MyModel'
+    fixed = replace(settings, base_url='https://api.groq.com/wrong')
+    assert fixed.base_url == 'https://api.groq.com/wrong'
+
+
+@pytest.mark.parametrize('base', ['api.groq.com/openai/v1', 'https://api.groq.com/openai/v1?secret=bad', 'https://user:pass@api.groq.com/openai/v1'])
+def test_invalid_base_is_rejected_without_echoing_it(settings, base):
+    with pytest.raises(ValueError) as err:
+        replace(settings, base_url=base)
+    assert base not in str(err.value)
