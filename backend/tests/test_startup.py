@@ -111,3 +111,40 @@ def test_groq_gpt_oss_json_budget_and_reasoning(settings=None):
         assert request['max_completion_tokens'] == 4096 and 'max_tokens' not in request
         assert request['include_reasoning'] is False and request['reasoning_effort'] == 'low'
         assert 'reasoning_format' not in request
+
+
+def test_model_quote_paraphrase_cannot_replace_retrieved_span():
+    from unittest.mock import patch
+    from app.services.generation import Generator
+    s = replace(Settings(), mode='llm', base_url='https://api.groq.com/openai/v1',
+                model='openai/gpt-oss-20b', api_key='not-a-real-key')
+    p = {'anchor': 'RAG', 'topic': 'similarity', 'difficulty': 'foundational'}
+    text = 'Similarity can compare the directions of feature vectors, rather than their magnitudes.'
+    evidence = [{'id': 'p20-c0', 'text': text}]
+    q = {'text': 'For a hypothetical RAG project, how would you compare vector directions?',
+         'focus': 'similarity', 'rationale': 'Connects RAG to the supplied passage.',
+         'citation_ids': ['p20-c0'], 'evidence_quote': 'Vectors always match perfectly, a fabricated quote.'}
+    resp = httpx.Response(200, request=httpx.Request('POST', s.base_url+'/chat/completions'),
+                          json={'choices': [{'finish_reason': 'stop', 'message': {'content': json.dumps(q)}}]})
+    with patch('httpx.Client.post', return_value=resp) as post:
+        result = Generator(s).model_question({'skills': ['RAG']}, 'ai-ml', p, evidence, [])
+        prompt = json.loads(post.call_args.kwargs['json']['messages'][1]['content'])
+        assert result['evidence_quote'] == prompt['passage'] == text
+        assert result['evidence_quote'] in evidence[0]['text']
+        assert 'fabricated' not in result['evidence_quote']
+
+
+def test_long_excerpt_is_bounded_and_verbatim():
+    from unittest.mock import patch
+    from app.services.generation import Generator
+    s = replace(Settings(), mode='llm')
+    p = {'anchor': 'RAG', 'topic': 'similarity', 'difficulty': 'foundational'}
+    text = ('Long source words ' * 60) + '.'
+    q = {'text': 'For a hypothetical RAG project, how would you test the passage idea?',
+         'focus': 'similarity', 'rationale': 'RAG passage connection.',
+         'citation_ids': ['p20-c0'], 'evidence_quote': 'This is a paraphrase with changed whitespace and punctuation.'}
+    resp = httpx.Response(200, request=httpx.Request('POST', 'http://test'),
+                          json={'choices': [{'message': {'content': json.dumps(q)}}]})
+    with patch('httpx.Client.post', return_value=resp):
+        result = Generator(s).model_question({'skills': ['RAG']}, 'ai-ml', p, [{'id':'p20-c0','text':text}], [])
+        assert len(result['evidence_quote']) == 250 and result['evidence_quote'] in text
