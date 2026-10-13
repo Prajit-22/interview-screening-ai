@@ -4,6 +4,27 @@ A complete React + FastAPI application for structured, textbook-grounded technic
 
 **For the assignment demo, use `GENERATION_MODE=llm`.** The default `practice` mode is an explicitly labelled, deterministic scaffold for testing the flow without a model. It is not AI question generation and is not a substitute for the mandatory model-powered demo.
 
+## Windows + Groq clean start
+
+Use a fresh extracted ZIP, not a mix of old and new Python files. Copy your existing root `.env` into the fresh repository root. The launcher never rewrites that file or prints your key.
+
+```powershell
+Set-Location 'PATH-TO-THE-FRESH-EXTRACTED-FOLDER'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run_windows.ps1
+```
+
+The launcher clears inherited model settings, loads the saved key from `.env`, forces the documented Groq base and `llama-3.1-8b-instant`, checks the account's model list, verifies the textbook checksum, builds the frontend, and starts both servers on fixed loopback ports. It stops on dependency, model-list or port errors instead of launching a half-working app. The model preflight is a read-only listing check, not proof of successful inference. Confirm by building an actual interview before recording the demo.
+
+A corporate/system proxy is not inherited by model HTTP calls. If this network requires a proxy, use an unrestricted network or configure that transport explicitly. The current Groq docs list this model, but account access and pricing are provider-controlled. This project does not silently choose a different model or practice mode.
+
+For a safe diagnostic (no keys or raw provider bodies):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/check_model.py
+```
+
+Python 3.10+ and Node.js 20.19+ or 22.12+ must already be installed. No PowerShell activation step is needed. Keep both server windows open; stop the backend with Ctrl+C and close the frontend terminal when done.
+
 ## Quick start
 
 Requirements: Python 3.10+, Node.js 20.19+ or 22.12+, and an OpenAI-compatible model endpoint for the AI demo. No GPU is required for the application itself.
