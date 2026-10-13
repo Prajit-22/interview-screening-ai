@@ -105,7 +105,7 @@ class Generator:
                    'prior_questions': [q['text'] for q in previous]}
         headers = {'Authorization': f'Bearer {self.settings.api_key}'} if self.settings.api_key else {}
         try:
-            with httpx.Client(timeout=self.settings.timeout) as client:
+            with httpx.Client(timeout=self.settings.timeout, trust_env=False) as client:
                 response = client.post(f'{self.settings.base_url}/chat/completions', headers=headers,
                                        json={'model': self.settings.model, 'temperature': 0.2,
                                              'max_tokens': 900,
@@ -156,5 +156,9 @@ class Generator:
             raise ModelUnavailable('Could not connect to the model API. Check LLM_BASE_URL and network access. No session was saved.') from exc
         except (ValueError, KeyError, IndexError, TypeError) as exc:
             # Validation errors are our own fixed strings, never raw model content.
-            reason = str(exc) if type(exc) is ValueError and not isinstance(exc, json.JSONDecodeError) else 'Invalid JSON response structure'
+            allowed = {'Model output was cut off at the token limit', 'Wrong question fields', 'Empty question fields',
+                       'Question field length out of bounds', 'Model invented or omitted a source ID',
+                       'Evidence quote is not verbatim from the selected passage', 'Question must cite the focused passage',
+                       'Question must mention the resume anchor and end with a question mark', 'Model repeated a question'}
+            reason = str(exc) if type(exc) is ValueError and str(exc) in allowed else 'Invalid JSON response structure'
             raise ModelUnavailable('Model response failed validation: ' + reason + '. Retry or use a more capable instruction model. No session was saved.', retryable=True) from exc
