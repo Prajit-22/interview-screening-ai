@@ -106,12 +106,18 @@ class Generator:
         headers = {'Authorization': f'Bearer {self.settings.api_key}'} if self.settings.api_key else {}
         try:
             with httpx.Client(timeout=self.settings.timeout, trust_env=False) as client:
-                response = client.post(f'{self.settings.base_url}/chat/completions', headers=headers,
-                                       json={'model': self.settings.model, 'temperature': 0.2,
-                                             'max_tokens': 900,
-                                             'messages': [{'role': 'system', 'content': instructions},
-                                                          {'role': 'user', 'content': json.dumps(payload)}],
-                                             'response_format': ({'type': 'json_object', 'schema': schema} if self.settings.json_schema else {'type': 'json_object'})})
+                body = {'model': self.settings.model, 'temperature': 0.2,
+                        'max_tokens': 900,
+                        'messages': [{'role': 'system', 'content': instructions},
+                                     {'role': 'user', 'content': json.dumps(payload)}],
+                        'response_format': ({'type': 'json_object', 'schema': schema} if self.settings.json_schema else {'type': 'json_object'})}
+                if self.settings.base_url == 'https://api.groq.com/openai/v1' and self.settings.model in {'openai/gpt-oss-20b', 'openai/gpt-oss-120b'}:
+                    # Reasoning and final output share the completion budget. Keep the
+                    # final content as JSON; never mix reasoning into the parser input.
+                    body.pop('max_tokens')
+                    body.update(max_completion_tokens=4096, reasoning_effort='low', include_reasoning=False)
+                    body['response_format'] = {'type': 'json_object'}
+                response = client.post(f'{self.settings.base_url}/chat/completions', headers=headers, json=body)
                 response.raise_for_status()
                 choice = response.json()['choices'][0]
                 if choice.get('finish_reason') == 'length':
