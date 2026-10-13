@@ -13,6 +13,9 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     dest = ROOT / 'data/hundred-page-ml.pdf'
     dest.parent.mkdir(exist_ok=True)
+    if dest.exists() and hashlib.sha256(dest.read_bytes()).hexdigest() == EXPECTED_SHA256:
+        print('Textbook checksum verified; no download needed')
+        return
     data = urllib.request.urlopen(URL, timeout=60).read()
     if not data.startswith(b'%PDF-') or hashlib.sha256(data).hexdigest() != EXPECTED_SHA256:
         raise ValueError('Textbook checksum changed. Inspect the source before accepting new bytes')
