@@ -2,11 +2,13 @@
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 if (!(Test-Path -LiteralPath '.env')) { throw 'Copy your existing .env into this folder first. Do not share the key.' }
-# Saved .env is authoritative for the key. Remove inherited stale model settings.
+# Preserve an explicit model override; saved .env remains authoritative for the key.
+$selectedModel = $env:LLM_MODEL
+if ([string]::IsNullOrWhiteSpace($selectedModel)) { $selectedModel = 'openai/gpt-oss-20b' }
 Get-ChildItem Env: | Where-Object { $_.Name -like 'LLM_*' -or $_.Name -eq 'GENERATION_MODE' } | ForEach-Object { Remove-Item -LiteralPath ('Env:' + $_.Name) }
 $env:GENERATION_MODE = 'llm'
 $env:LLM_BASE_URL = 'https://api.groq.com/openai/v1'
-$env:LLM_MODEL = 'llama-3.1-8b-instant'
+$env:LLM_MODEL = $selectedModel.Trim()
 $env:LLM_JSON_SCHEMA = 'false'
 foreach ($port in @(8000,5173)) {
     if (Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue) {
