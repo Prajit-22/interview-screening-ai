@@ -89,3 +89,25 @@ def test_real_http_model_full_lifecycle(tmp_path, monkeypatch):
             assert client.get('/api/sessions/'+session['id']).json()['summary']['answered'] == 3
     finally:
         server.shutdown(); thread.join(); server.server_close()
+
+
+def test_groq_gpt_oss_json_budget_and_reasoning(settings=None):
+    from unittest.mock import patch
+    from app.services.generation import Generator
+    s = replace(Settings(), mode='llm', base_url='https://api.groq.com/openai/v1',
+                model='openai/gpt-oss-20b', api_key='not-a-real-key', json_schema=False)
+    p = {'anchor': 'RAG', 'topic': 'similarity', 'difficulty': 'foundational'}
+    evidence = [{'id': 'p20-c0', 'text': 'Similarity can compare the directions of feature vectors.'}]
+    valid = {'text': 'How would you compare two vectors in a hypothetical RAG retrieval project?',
+             'focus': 'similarity', 'rationale': 'Connects RAG to similarity', 'citation_ids': ['p20-c0'],
+             'evidence_quote': evidence[0]['text']}
+    response = httpx.Response(200, request=httpx.Request('POST', s.base_url+'/chat/completions'),
+                              json={'choices': [{'finish_reason': 'stop', 'message': {
+                                  'content': json.dumps(valid), 'reasoning': 'Do not parse this field'}}]})
+    with patch('httpx.Client.post', return_value=response) as post:
+        assert Generator(s).model_question({'skills': ['RAG']}, 'ai-ml', p, evidence, []) == valid
+        request = post.call_args.kwargs['json']
+        assert request['response_format'] == {'type': 'json_object'}
+        assert request['max_completion_tokens'] == 4096 and 'max_tokens' not in request
+        assert request['include_reasoning'] is False and request['reasoning_effort'] == 'low'
+        assert 'reasoning_format' not in request
